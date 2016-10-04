@@ -5,7 +5,7 @@ setup(
     version='0.0.1',
     url='https://github.com/klickverbot/llama',
     author='David P. Nadlinger',
-    packages=find_packages(),
+    packages=['llama'],
     install_requires=[
         'aiohttp',
         'artiq'
