@@ -32,7 +32,13 @@ def run_simple_rpc_server(port, setup_args, interface_name, setup_interface):
     influx_pusher = influxdb_pusher_from_args(args)
     if influx_pusher:
         t = asyncio.ensure_future(influx_pusher.run())
-        atexit.register(t.cancel)
+        def stop():
+            t.cancel()
+            try:
+                loop.run_until_complete(t)
+            except asyncio.CancelledError:
+                pass
+        atexit.register(stop)
 
     interface = setup_interface(args, influx_pusher, loop)
 
