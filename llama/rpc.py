@@ -42,6 +42,11 @@ def run_simple_rpc_server(port, setup_args, interface_name, setup_interface):
 
     interface = setup_interface(args, influx_pusher, loop)
 
+    # Provide a default ping() method, which ARTIQ calls regularly for
+    # heartbeating purposes.
+    if not hasattr(interface, "ping"):
+        setattr(interface, "ping", lambda: True)
+
     rpc_server = Server({interface_name: interface}, builtin_terminate=True)
     loop.run_until_complete(rpc_server.start(bind_address_from_args(args), args.port))
     atexit_register_coroutine(rpc_server.stop)
