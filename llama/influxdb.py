@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def influxdb_args(parser: argparse.ArgumentParser):
     """
-    Registers command line arguments to configure an InfluxDB instance to push
+    Register command line arguments to configure an InfluxDB instance to push
     measurements to (see :func:`influxdb_pusher_from_args`).
     """
     parser.add_argument("--influxdb-endpoint", default=None,
@@ -23,7 +23,7 @@ def influxdb_args(parser: argparse.ArgumentParser):
 
 def influxdb_pusher_from_args(args, loop: asyncio.AbstractEventLoop = None):
     """
-    Constructs an :class:`InfluxDBPusher` from the standard arguments (see
+    Construct an :class:`InfluxDBPusher` from the standard arguments (see
     :func:`influxdb_args`), or `None` if not enabled.
     """
     if not args.influxdb_endpoint:
@@ -31,8 +31,9 @@ def influxdb_pusher_from_args(args, loop: asyncio.AbstractEventLoop = None):
         return None
 
     if not args.influxdb_tags:
-        raise ValueError("No InfluxDB tags set. Refusing to push data to avoid "
-                         "later disambiguation/discoverability problems.")
+        raise ValueError("No InfluxDB tags set (--influxdb-tags). Refusing to "
+                         "push data to avoid later disambiguation and "
+                         "discoverability problems.")
 
     return InfluxDBPusher(args.influxdb_endpoint, args.influxdb_tags, loop)
 
