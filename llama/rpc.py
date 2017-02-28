@@ -6,10 +6,10 @@ from artiq.protocols.pc_rpc import Server
 from artiq.tools import atexit_register_coroutine, bind_address_from_args,\
     init_logger, simple_network_args, verbosity_args
 from .influxdb import influxdb_args, influxdb_pusher_from_args
-from .sample_chunker import SampleChunker
+from .channels import ChunkedChannel
 
 
-def add_chunker_methods(interface, chan: SampleChunker):
+def add_chunker_methods(interface, chan: ChunkedChannel):
     setattr(interface, "get_latest_" + chan.name, chan.get_latest)
     setattr(interface, "get_new_" + chan.name, chan.get_new)
 

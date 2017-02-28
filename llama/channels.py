@@ -8,7 +8,66 @@ logger = logging.getLogger(__name__)
 T = TypeVar('T')
 
 
-class SampleChunker(Generic[T]):
+class SimpleChannel(Generic[T]):
+    """
+
+    """
+
+    def __init__(self, name: str, bin_finished: Callable[[T], None],
+                 loop: AbstractEventLoop=None):
+        """
+
+        """
+        self.name = name
+        self.bin_finished = bin_finished
+        self.target_bin_size = target_bin_size
+        self.max_bin_duration_secs = max_bin_duration_secs
+        self._loop = loop if loop else get_event_loop()
+
+        #: Data points in the current bin.
+        self._points = []
+
+        self._last_point = None
+
+        #: List of asyncio.Futures waiting for a new value to arrive.
+        self._waiting_for_values = []
+
+        self._schedule_timeout()
+
+    # FIXME: No type hints due to issues when exported via ARTIQ's pc_rpc.
+    async def get_latest(self):
+        """
+        Get the latest available measurement value.
+
+        Yields if no point has been pushed yet.
+        """
+        if not self._last_point:
+            return await self.get_new()
+        return self._last_point
+
+    # FIXME: No type hints due to issues when exported via ARTIQ's pc_rpc.
+    async def get_new(self):
+        """
+        Await the next measurement value to be pushed and return it.
+        """
+        f = Future()
+        self._waiting_for_values.append(f)
+        return await f
+
+
+    def push(self, value: T) -> None:
+        """
+        Push a new measurement value, appending it to the current bin and
+        notifying any :meth:`get_new` calls waiting on it.
+        """
+        self._last_point = value
+        self.
+        for f in self._waiting_for_values:
+            f.set_result(value)
+        self._waiting_for_values.clear()
+
+
+class ChunkedChannel(Generic[T]):
     """
     Divides up a stream of measurements into chunks of a certain length or
     spanning a certain wall clock duration, whichever limit is hit first.
