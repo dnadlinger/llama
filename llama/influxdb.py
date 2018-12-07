@@ -32,8 +32,8 @@ def influxdb_pusher_from_args(args, loop: asyncio.AbstractEventLoop = None):
 
     if not args.influxdb_tags:
         raise ValueError("No InfluxDB tags set (--influxdb-tags). Refusing to "
-                         "push data to avoid later disambiguation and "
-                         "discoverability problems.")
+                         "push data to avoid later "
+                         "disambiguation/discoverability problems.")
 
     return InfluxDBPusher(args.influxdb_endpoint, args.influxdb_tags, loop)
 
