@@ -2,9 +2,10 @@ import asyncio
 import atexit
 
 from argparse import ArgumentParser
-from artiq.protocols.pc_rpc import Server
-from artiq.tools import atexit_register_coroutine, bind_address_from_args,\
-    init_logger, simple_network_args, verbosity_args
+from sipyco.pc_rpc import Server
+from sipyco.asyncio_tools import atexit_register_coroutine
+from sipyco.common_args import bind_address_from_args,\
+    init_logger_from_args, simple_network_args, verbosity_args
 from .influxdb import influxdb_args, influxdb_pusher_from_args
 from .channels import ChunkedChannel
 
@@ -24,7 +25,7 @@ def run_simple_rpc_server(port, setup_args, interface_name, setup_interface):
         setup_args(parser)
 
     args = parser.parse_args()
-    init_logger(args)
+    init_logger_from_args(args)
 
     loop = asyncio.get_event_loop()
     atexit.register(loop.close)
