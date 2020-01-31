@@ -8,6 +8,6 @@ setup(
     packages=['llama'],
     install_requires=[
         'aiohttp',
-        'artiq'
+        'sipyco'
     ]
 )
