@@ -104,10 +104,11 @@ class InfluxDBPusher:
             body = "{},{} {} {}".format(
                 field, self.tags, values, round(timestamp * 1e9))
 
-            async with aiohttp.ClientSession(loop=self._loop) as client:
+            async with aiohttp.ClientSession() as client:
                 async with client.post(self.write_endpoint, data=body) as resp:
                     if resp.status != 204:
                         resp_body = (await resp.text()).strip()
                         logger.warning("Error pushing '%s' to %s (HTTP %s): %s",
                                        body, self.write_endpoint,
                                        resp.status, resp_body)
+                client.close()
