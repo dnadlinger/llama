@@ -94,14 +94,14 @@ class InfluxDBPusher:
         Runs the loop that drains the measurement queue and pushes the values
         to InfluxDB. Meant to be run as a background coroutine.
         """
-        while True:
-            field, stats, timestamp = await self._queue.get()
+        async with aiohttp.ClientSession() as client:
+            while True:
+                field, stats, timestamp = await self._queue.get()
 
-            values = ",".join(["{}={}".format(k, v) for k, v in stats.items()])
-            body = "{},{} {} {}".format(field, self.tags, values,
-                                        round(timestamp * 1e9))
+                values = ",".join(["{}={}".format(k, v) for k, v in stats.items()])
+                body = "{},{} {} {}".format(field, self.tags, values,
+                                            round(timestamp * 1e9))
 
-            async with aiohttp.ClientSession() as client:
                 async with client.post(self.write_endpoint, data=body) as resp:
                     if resp.status != 204:
                         resp_body = (await resp.text()).strip()
