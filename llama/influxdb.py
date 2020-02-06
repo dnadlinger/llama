@@ -15,7 +15,8 @@ def influxdb_args(parser: argparse.ArgumentParser):
     Register command line arguments to configure an InfluxDB instance to push
     measurements to (see :func:`influxdb_pusher_from_args`).
     """
-    parser.add_argument("--influxdb-endpoint", default=None,
+    parser.add_argument("--influxdb-endpoint",
+                        default=None,
                         help="InfluxDB write endpoint to push data to (e,g. "
                         "http://localhost:8086/write?db=mydb)")
     parser.add_argument("--influxdb-tags", default=None)
@@ -59,7 +60,6 @@ class InfluxDBPusher:
     (and using non-blocking HTTP calls), and failures are logged as warnings,
     but ignored.
     """
-
     def __init__(self,
                  write_endpoint: str,
                  tags: str,
@@ -88,9 +88,10 @@ class InfluxDBPusher:
         try:
             self._queue.put_nowait((field, values, time.time()))
         except asyncio.QueueFull:
-            logger.warning("Error pushing '%s' to %s: Queue full; dropping "
-                           "point (network connection or server down/slow?)",
-                           field, self.write_endpoint)
+            logger.warning(
+                "Error pushing '%s' to %s: Queue full; dropping "
+                "point (network connection or server down/slow?)", field,
+                self.write_endpoint)
 
     async def run(self):
         """
@@ -101,13 +102,12 @@ class InfluxDBPusher:
             field, stats, timestamp = await self._queue.get()
 
             values = ",".join(["{}={}".format(k, v) for k, v in stats.items()])
-            body = "{},{} {} {}".format(
-                field, self.tags, values, round(timestamp * 1e9))
+            body = "{},{} {} {}".format(field, self.tags, values,
+                                        round(timestamp * 1e9))
 
             async with aiohttp.ClientSession(loop=self._loop) as client:
                 async with client.post(self.write_endpoint, data=body) as resp:
                     if resp.status != 204:
                         resp_body = (await resp.text()).strip()
-                        logger.warning("Error pushing '%s' to %s (HTTP %s): %s",
-                                       body, self.write_endpoint,
-                                       resp.status, resp_body)
+                        logger.warning("Error pushing '%s' to %s (HTTP %s): %s", body,
+                                       self.write_endpoint, resp.status, resp_body)

@@ -18,10 +18,12 @@ class ChunkedChannel(Generic[T]):
     but to also gracefully handle situations where measurements become available
     unusually slowly.
     """
-
-    def __init__(self, name: str, bin_finished: Callable[[Iterable[T]], None],
-                 target_bin_size: int, max_bin_duration_secs: float,
-                 loop: AbstractEventLoop=None):
+    def __init__(self,
+                 name: str,
+                 bin_finished: Callable[[Iterable[T]], None],
+                 target_bin_size: int,
+                 max_bin_duration_secs: float,
+                 loop: AbstractEventLoop = None):
         """
         Initialise a new statistics accumulation channel.
 
@@ -102,6 +104,6 @@ class ChunkedChannel(Generic[T]):
         if self._points:
             pass
         else:
-            logger.debug("No data for channel '%s' in last %s seconds.",
-                         self.name, self.max_bin_duration_secs)
+            logger.debug("No data for channel '%s' in last %s seconds.", self.name,
+                         self.max_bin_duration_secs)
         self._schedule_timeout()
