@@ -22,7 +22,7 @@ def influxdb_args(parser: argparse.ArgumentParser):
     parser.add_argument("--influxdb-tags", default=None)
 
 
-def influxdb_pusher_from_args(args, loop: asyncio.AbstractEventLoop = None):
+def influxdb_pusher_from_args(args):
     """
     Construct an :class:`InfluxDBPusher` from the standard arguments (see
     :func:`influxdb_args`), or `None` if not enabled.
@@ -36,7 +36,7 @@ def influxdb_pusher_from_args(args, loop: asyncio.AbstractEventLoop = None):
                          "push data to avoid later "
                          "disambiguation/discoverability problems.")
 
-    return InfluxDBPusher(args.influxdb_endpoint, args.influxdb_tags, loop)
+    return InfluxDBPusher(args.influxdb_endpoint, args.influxdb_tags)
 
 
 def aggregate_stats_default(values: Iterable[float]):
@@ -60,10 +60,7 @@ class InfluxDBPusher:
     (and using non-blocking HTTP calls), and failures are logged as warnings,
     but ignored.
     """
-    def __init__(self,
-                 write_endpoint: str,
-                 tags: str,
-                 loop: asyncio.AbstractEventLoop = None):
+    def __init__(self, write_endpoint: str, tags: str):
         """
         Creates a new exporter instance.
 
@@ -74,8 +71,7 @@ class InfluxDBPusher:
         """
         self.write_endpoint = write_endpoint
         self.tags = tags
-        self._loop = loop
-        self._queue = asyncio.Queue(128, loop=self._loop)
+        self._queue = asyncio.Queue(128)
 
     def push(self, field: str, values: Mapping[str, Any]) -> None:
         """
@@ -105,7 +101,7 @@ class InfluxDBPusher:
             body = "{},{} {} {}".format(field, self.tags, values,
                                         round(timestamp * 1e9))
 
-            async with aiohttp.ClientSession(loop=self._loop) as client:
+            async with aiohttp.ClientSession() as client:
                 async with client.post(self.write_endpoint, data=body) as resp:
                     if resp.status != 204:
                         resp_body = (await resp.text()).strip()
