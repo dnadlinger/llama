@@ -1,11 +1,11 @@
-import asyncio
-import aiohttp
 import argparse
+import asyncio
 import logging
-import numpy as np
 import time
-
 from typing import Any, Iterable, Mapping
+
+import aiohttp
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +15,24 @@ def influxdb_args(parser: argparse.ArgumentParser):
     Register command line arguments to configure an InfluxDB instance to push
     measurements to (see :func:`influxdb_pusher_from_args`).
     """
-    parser.add_argument("--influxdb-endpoint",
-                        default=None,
-                        help="InfluxDB write endpoint to push data to (e,g. "
-                        "http://localhost:8086/write?db=mydb)")
+    parser.add_argument(
+        "--influxdb-endpoint",
+        default=None,
+        help="InfluxDB write endpoint to push data to (e,g. "
+        "http://localhost:8086/write?db=mydb)",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=30,
+        help="Connection timeout interval for InfluxDB (in seconds)",
+    )
+    parser.add_argument(
+        "--retry-interval",
+        type=int,
+        default=60,
+        help="Interval to wait before retrying after after a failed InfluxDB connection (seconds)",
+    )
     parser.add_argument("--influxdb-tags", default=None)
 
 
@@ -32,11 +46,15 @@ def influxdb_pusher_from_args(args):
         return None
 
     if not args.influxdb_tags:
-        raise ValueError("No InfluxDB tags set (--influxdb-tags). Refusing to "
-                         "push data to avoid later "
-                         "disambiguation/discoverability problems.")
+        raise ValueError(
+            "No InfluxDB tags set (--influxdb-tags). Refusing to "
+            "push data to avoid later "
+            "disambiguation/discoverability problems."
+        )
 
-    return InfluxDBPusher(args.influxdb_endpoint, args.influxdb_tags)
+    return InfluxDBPusher(
+        args.influxdb_endpoint, args.influxdb_tags, args.timeout, args.retry_interval
+    )
 
 
 def aggregate_stats_default(values: Iterable[float]):
@@ -46,7 +64,7 @@ def aggregate_stats_default(values: Iterable[float]):
         "p05": np.percentile(data, 5),
         "mean": np.mean(data),
         "p95": np.percentile(data, 95),
-        "max": np.max(data)
+        "max": np.max(data),
     }
 
 
@@ -60,7 +78,8 @@ class InfluxDBPusher:
     (and using non-blocking HTTP calls), and failures are logged as warnings,
     but ignored.
     """
-    def __init__(self, write_endpoint: str, tags: str):
+
+    def __init__(self, write_endpoint: str, tags: str, timeout=60, retry_interval=60):
         """
         Creates a new exporter instance.
 
@@ -72,6 +91,10 @@ class InfluxDBPusher:
         self.write_endpoint = write_endpoint
         self.tags = tags
         self._queue = asyncio.Queue(128)
+        self._timeout = aiohttp.ClientTimeout(
+            connect=timeout, sock_connect=timeout, sock_read=timeout, total=None
+        )
+        self._retry_interval = retry_interval
 
     def push(self, field: str, values: Mapping[str, Any]) -> None:
         """
@@ -86,26 +109,43 @@ class InfluxDBPusher:
         except asyncio.QueueFull:
             logger.warning(
                 "Error pushing '%s' to %s: Queue full; dropping "
-                "point (network connection or server down/slow?)", field,
-                self.write_endpoint)
+                "point (network connection or server down/slow?)",
+                field,
+                self.write_endpoint,
+            )
 
     async def run(self):
         """
         Runs the loop that drains the measurement queue and pushes the values
         to InfluxDB. Meant to be run as a background coroutine.
         """
+
         while True:
-            async with aiohttp.ClientSession() as client:
-                while True:
-                    field, stats, timestamp = await self._queue.get()
+            try:
+                async with aiohttp.ClientSession(timeout=self._timeout) as client:
+                    while True:
+                        field, stats, timestamp = await self._queue.get()
 
-                    values = ",".join(["{}={}".format(k, v) for k, v in stats.items()])
-                    body = "{},{} {} {}".format(field, self.tags, values,
-                                                round(timestamp * 1e9))
+                        values = ",".join(
+                            ["{}={}".format(k, v) for k, v in stats.items()]
+                        )
+                        body = "{},{} {} {}".format(
+                            field, self.tags, values, round(timestamp * 1e9)
+                        )
 
-                    async with client.post(self.write_endpoint, data=body) as resp:
-                        if resp.status != 204:
-                            resp_body = (await resp.text()).strip()
-                            logger.warning("Error pushing '%s' to %s (HTTP %s): %s", body,
-                                           self.write_endpoint, resp.status, resp_body)
-                            break
+                        async with client.post(self.write_endpoint, data=body) as resp:
+                            if resp.status != 204:
+                                resp_body = (await resp.text()).strip()
+                                logger.warning(
+                                    "Error pushing '%s' to %s (HTTP %s): %s",
+                                    body,
+                                    self.write_endpoint,
+                                    resp.status,
+                                    resp_body,
+                                )
+                                break
+            except asyncio.TimeoutError:
+                logger.warning(
+                    f"Connection timed out. Trying again in {self._retry_interval} seconds..."
+                )
+                await asyncio.sleep(self._retry_interval)
