@@ -4,8 +4,12 @@ import atexit
 from argparse import ArgumentParser
 from sipyco.pc_rpc import Server
 from sipyco.asyncio_tools import atexit_register_coroutine
-from sipyco.common_args import bind_address_from_args,\
-    init_logger_from_args, simple_network_args, verbosity_args
+from sipyco.common_args import (
+    bind_address_from_args,
+    init_logger_from_args,
+    simple_network_args,
+    verbosity_args,
+)
 from .influxdb import influxdb_args, influxdb_pusher_from_args
 from .channels import ChunkedChannel
 
