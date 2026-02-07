@@ -103,10 +103,18 @@ class ChunkedChannel(Generic[T]):
         )
 
     def _timeout_elapsed(self) -> None:
-        if not self._points:
+        if self._points:
             logger.debug(
+                "Ending '%s' chunk after %s points from last %s seconds.",
+                self.name,
+                len(self._points),
+                self.max_bin_duration_secs,
+            )
+            self._finish_bin()
+        else:
+            logger.info(
                 "No data for channel '%s' in last %s seconds.",
                 self.name,
                 self.max_bin_duration_secs,
             )
-        self._schedule_timeout()
+            self._schedule_timeout()
