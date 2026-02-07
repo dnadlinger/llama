@@ -1,5 +1,4 @@
 import logging
-
 from asyncio import AbstractEventLoop, Future, get_event_loop
 from typing import Callable, Generic, Iterable, TypeVar
 

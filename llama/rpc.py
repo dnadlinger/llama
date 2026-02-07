@@ -1,8 +1,7 @@
 import asyncio
 import atexit
-
 from argparse import ArgumentParser
-from sipyco.pc_rpc import Server
+
 from sipyco.asyncio_tools import atexit_register_coroutine
 from sipyco.common_args import (
     bind_address_from_args,
@@ -10,8 +9,10 @@ from sipyco.common_args import (
     simple_network_args,
     verbosity_args,
 )
-from .influxdb import influxdb_args, influxdb_pusher_from_args
+from sipyco.pc_rpc import Server
+
 from .channels import ChunkedChannel
+from .influxdb import influxdb_args, influxdb_pusher_from_args
 
 
 def add_chunker_methods(interface, chan: ChunkedChannel):
