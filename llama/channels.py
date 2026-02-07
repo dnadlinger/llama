@@ -12,6 +12,7 @@ T = TypeVar("T")
 class ChunkedChannel(Generic[T]):
     """Divides up a stream of measurements into chunks of a certain length or
     spanning a certain wall clock duration, whichever limit is hit first.
+
     Clients can also query the most recent value as well as await the next one.
 
     This is useful where the goal is to provide consistent per-chunk statistics,
@@ -30,18 +31,19 @@ class ChunkedChannel(Generic[T]):
         """Initialise a new statistics accumulation channel.
 
         :param name: A human-readable name for the channel.
-        :param bin_finished: A callback to invoke
-        :param target_bin_size: The target number of samples per bin, after
-            which the
+        :param bin_finished: A callback to invoke once the bin has been finished.
+        :param target_bin_size: The target number of samples per bin, after which the
+            bin is considered finished.
         :param max_bin_duration_secs: The maximum wall clock duration of each
-            bin. After it is reached, a bin is finished even if the target number
+            bin, after which a bin is finished (even if target_bin_size has not been
+            reached yet).
         :param loop: The asyncio event loop to use.
         """
         self.name = name
         self.bin_finished = bin_finished
         self.target_bin_size = target_bin_size
         self.max_bin_duration_secs = max_bin_duration_secs
-        self._loop = loop if loop else get_event_loop()
+        self._loop = loop or get_event_loop()
 
         #: Data points in the current bin.
         self._points = []
@@ -54,7 +56,7 @@ class ChunkedChannel(Generic[T]):
         self._schedule_timeout()
 
     # FIXME: No type hints due to issues when exported via ARTIQ's pc_rpc.
-    async def get_latest(self):
+    async def get_latest(self) -> T:
         """Get the latest available measurement value.
 
         Yields if no point has been pushed yet.
@@ -64,7 +66,7 @@ class ChunkedChannel(Generic[T]):
         return self._last_point
 
     # FIXME: No type hints due to issues when exported via ARTIQ's pc_rpc.
-    async def get_new(self):
+    async def get_new(self) -> T:
         """Await the next measurement value to be pushed and return it."""
         f = Future()
         self._waiting_for_values.append(f)
@@ -101,9 +103,7 @@ class ChunkedChannel(Generic[T]):
         )
 
     def _timeout_elapsed(self) -> None:
-        if self._points:
-            pass
-        else:
+        if not self._points:
             logger.debug(
                 "No data for channel '%s' in last %s seconds.",
                 self.name,

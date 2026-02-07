@@ -1,12 +1,16 @@
-import argparse
+from __future__ import annotations
+
 import asyncio
 import logging
 import time
-from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import numpy as np
+
+if TYPE_CHECKING:
+    import argparse
+    from collections.abc import Iterable, Mapping
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +35,12 @@ def influxdb_args(parser: argparse.ArgumentParser) -> None:
         "--retry-interval",
         type=int,
         default=60,
-        help="Interval to wait before retrying after after a failed InfluxDB connection (seconds)",
+        help="Interval before retrying after a failed InfluxDB connection (seconds)",
     )
     parser.add_argument("--influxdb-tags", default=None)
 
 
-def influxdb_pusher_from_args(args):
+def influxdb_pusher_from_args(args: argparse.Namespace) -> InfluxDBPusher:
     """Construct an :class:`InfluxDBPusher` from the standard arguments (see
     :func:`influxdb_args`), or `None` if not enabled.
     """
@@ -49,9 +53,7 @@ def influxdb_pusher_from_args(args):
             "No InfluxDB tags set (--influxdb-tags). Refusing to push data to avoid "
             "later disambiguation/discoverability problems."
         )
-        raise ValueError(
-            msg,
-        )
+        raise ValueError(msg)
 
     return InfluxDBPusher(
         args.influxdb_endpoint,
@@ -61,7 +63,7 @@ def influxdb_pusher_from_args(args):
     )
 
 
-def aggregate_stats_default(values: Iterable[float]):
+def aggregate_stats_default(values: Iterable[float]) -> dict[str, float]:
     data = np.array(values)
     return {
         "min": np.min(data),
@@ -83,9 +85,13 @@ class InfluxDBPusher:
     """
 
     def __init__(
-        self, write_endpoint: str, tags: str, timeout=60, retry_interval=60
+        self,
+        write_endpoint: str,
+        tags: str,
+        timeout: float = 60,
+        retry_interval: float = 60,
     ) -> None:
-        """Creates a new exporter instance.
+        """Create a new exporter instance.
 
         :param write_endpoint: The url for the /write?db=… HTTP POST endpoint to
             push the data to.
@@ -104,9 +110,10 @@ class InfluxDBPusher:
         self._retry_interval = retry_interval
 
     def push(self, field: str, values: Mapping[str, Any]) -> None:
-        """Enqueues a new data point to be pushed to InfluxDB.
+        """Enqueue a new data point to be pushed to InfluxDB.
 
-        :param field: The field name to use. This is the
+        :param field: The field name to use. This is used as the ``measurement`` in
+            InfluxDB parlance.
         :param values: A dictionary of value names/contents for the data point
             (by InfluxDB convention named "value" if only a single one).
         """
@@ -121,7 +128,7 @@ class InfluxDBPusher:
             )
 
     async def run(self) -> None:
-        """Runs the loop that drains the measurement queue and pushes the values
+        """Run the loop that drains the measurement queue and pushes the values
         to InfluxDB. Meant to be run as a background coroutine.
         """
         while True:
@@ -130,9 +137,7 @@ class InfluxDBPusher:
                     while True:
                         field, stats, timestamp = await self._queue.get()
 
-                        values = ",".join(
-                            [f"{k}={v}" for k, v in stats.items()],
-                        )
+                        values = ",".join(f"{k}={v}" for k, v in stats.items())
                         body = f"{field},{self.tags} {values} {round(timestamp * 1e9)}"
 
                         async with client.post(self.write_endpoint, data=body) as resp:

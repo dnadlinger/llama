@@ -4,5 +4,5 @@ line-length = 88
 line-ending = "lf"
 
 [lint]
-ignore = ["FIX", "TD"]
+ignore = ["FIX", "TD", "D205"]
 extend-select = ["I"]
