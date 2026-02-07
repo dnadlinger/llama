@@ -56,7 +56,7 @@ class ChunkedChannel(Generic[T]):
         self._schedule_timeout()
 
     # FIXME: No type hints due to issues when exported via ARTIQ's pc_rpc.
-    async def get_latest(self) -> T:
+    async def get_latest(self):  # -> T  # noqa: ANN201
         """Get the latest available measurement value.
 
         Yields if no point has been pushed yet.
@@ -66,7 +66,7 @@ class ChunkedChannel(Generic[T]):
         return self._last_point
 
     # FIXME: No type hints due to issues when exported via ARTIQ's pc_rpc.
-    async def get_new(self) -> T:
+    async def get_new(self):  # -> T  # noqa: ANN201
         """Await the next measurement value to be pushed and return it."""
         f = Future()
         self._waiting_for_values.append(f)
