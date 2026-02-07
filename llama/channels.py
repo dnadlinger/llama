@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import logging
 from asyncio import AbstractEventLoop, Future, get_event_loop
-from typing import TYPE_CHECKING, Callable, Generic, TypeVar
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable
+from typing import Callable, Generic, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +22,7 @@ class ChunkedChannel(Generic[T]):
     def __init__(
         self,
         name: str,
-        bin_finished: Callable[[Iterable[T]], None],
+        bin_finished: Callable[[list[T]], None],
         target_bin_size: int,
         max_bin_duration_secs: float,
         loop: AbstractEventLoop | None = None,
