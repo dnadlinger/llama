@@ -1,0 +1,34 @@
+[project]
+name = "llama"
+version = "v0.0.2"
+description = "Laboratory Logging and Monitoring for ARTIQ"
+authors = [{ name = "David Nadlinger", email = "code@klickverbot.at" }]
+requires-python = ">=3.9"
+license = "LGPL-3.0-or-later"
+
+dependencies = ["aiohttp", "sipyco"]
+
+[dependency-groups]
+dev = [
+    "poethepoet>=0.22.1",
+    "ruff>=0.14.11",
+    "sphinx>=7.2.6",
+    "toml>=0.10.2",
+]
+
+[tool.uv.sources]
+# Pin SiPyCo to v1.9 for now to avoid PYON v2 fiasco (silent, breaking format change).
+sipyco = { git = "https://github.com/m-labs/sipyco.git", tag = "v1.9" }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.poe.tasks]
+docs = "make -C $POE_ROOT/docs html"
+
+_fmt-imports = "ruff check --select I --fix llama -q"
+_fmt = "ruff format llama"
+fmt.sequence = ["_fmt-imports", "_fmt"]
+
+lint = "ruff check llama"

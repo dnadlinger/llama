@@ -1,12 +1,8 @@
-line-length=88
+line-length = 88
 
 [format]
 line-ending = "lf"
 
 [lint]
-ignore =[
-    # Star imports are common in idiomatic ARTIQ code
-    "F403", "F405"
-]
+ignore = ["FIX", "TD"]
 extend-select = ["I"]
-
