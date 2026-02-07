@@ -1,5 +1,6 @@
 import asyncio
 import atexit
+import contextlib
 from argparse import ArgumentParser
 
 from sipyco.asyncio_tools import atexit_register_coroutine
@@ -15,12 +16,12 @@ from .channels import ChunkedChannel
 from .influxdb import influxdb_args, influxdb_pusher_from_args
 
 
-def add_chunker_methods(interface, chan: ChunkedChannel):
+def add_chunker_methods(interface, chan: ChunkedChannel) -> None:
     setattr(interface, "get_latest_" + chan.name, chan.get_latest)
     setattr(interface, "get_new_" + chan.name, chan.get_new)
 
 
-def run_simple_rpc_server(port, setup_args, interface_name, setup_interface):
+def run_simple_rpc_server(port, setup_args, interface_name, setup_interface) -> None:
     parser = ArgumentParser()
 
     influxdb_args(parser)
@@ -39,12 +40,10 @@ def run_simple_rpc_server(port, setup_args, interface_name, setup_interface):
     if influx_pusher:
         t = asyncio.ensure_future(influx_pusher.run())
 
-        def stop():
+        def stop() -> None:
             t.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 loop.run_until_complete(t)
-            except asyncio.CancelledError:
-                pass
 
         atexit.register(stop)
 
@@ -53,7 +52,7 @@ def run_simple_rpc_server(port, setup_args, interface_name, setup_interface):
     # Provide a default ping() method, which ARTIQ calls regularly for
     # heartbeating purposes.
     if not hasattr(interface, "ping"):
-        setattr(interface, "ping", lambda: True)
+        interface.ping = lambda: True
 
     rpc_server = Server({interface_name: interface}, builtin_terminate=True)
     loop.run_until_complete(rpc_server.start(bind_address_from_args(args), args.port))

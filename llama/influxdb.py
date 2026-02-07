@@ -2,7 +2,8 @@ import argparse
 import asyncio
 import logging
 import time
-from typing import Any, Iterable, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 import aiohttp
 import numpy as np
@@ -10,9 +11,8 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-def influxdb_args(parser: argparse.ArgumentParser):
-    """
-    Register command line arguments to configure an InfluxDB instance to push
+def influxdb_args(parser: argparse.ArgumentParser) -> None:
+    """Register command line arguments to configure an InfluxDB instance to push
     measurements to (see :func:`influxdb_pusher_from_args`).
     """
     parser.add_argument(
@@ -37,8 +37,7 @@ def influxdb_args(parser: argparse.ArgumentParser):
 
 
 def influxdb_pusher_from_args(args):
-    """
-    Construct an :class:`InfluxDBPusher` from the standard arguments (see
+    """Construct an :class:`InfluxDBPusher` from the standard arguments (see
     :func:`influxdb_args`), or `None` if not enabled.
     """
     if not args.influxdb_endpoint:
@@ -46,14 +45,19 @@ def influxdb_pusher_from_args(args):
         return None
 
     if not args.influxdb_tags:
+        msg = (
+            "No InfluxDB tags set (--influxdb-tags). Refusing to push data to avoid "
+            "later disambiguation/discoverability problems."
+        )
         raise ValueError(
-            "No InfluxDB tags set (--influxdb-tags). Refusing to "
-            "push data to avoid later "
-            "disambiguation/discoverability problems."
+            msg,
         )
 
     return InfluxDBPusher(
-        args.influxdb_endpoint, args.influxdb_tags, args.timeout, args.retry_interval
+        args.influxdb_endpoint,
+        args.influxdb_tags,
+        args.timeout,
+        args.retry_interval,
     )
 
 
@@ -69,8 +73,7 @@ def aggregate_stats_default(values: Iterable[float]):
 
 
 class InfluxDBPusher:
-    """
-    Pushes a series of measurements to InfluxDB in the background.
+    """Pushes a series of measurements to InfluxDB in the background.
 
     This is intended for situations where InfluxDB logging is not critical for
     the application, which might have to respond to latency-sensitive foreground
@@ -79,9 +82,10 @@ class InfluxDBPusher:
     but ignored.
     """
 
-    def __init__(self, write_endpoint: str, tags: str, timeout=60, retry_interval=60):
-        """
-        Creates a new exporter instance.
+    def __init__(
+        self, write_endpoint: str, tags: str, timeout=60, retry_interval=60
+    ) -> None:
+        """Creates a new exporter instance.
 
         :param write_endpoint: The url for the /write?db=… HTTP POST endpoint to
             push the data to.
@@ -92,13 +96,15 @@ class InfluxDBPusher:
         self.tags = tags
         self._queue = asyncio.Queue(128)
         self._timeout = aiohttp.ClientTimeout(
-            connect=timeout, sock_connect=timeout, sock_read=timeout, total=None
+            connect=timeout,
+            sock_connect=timeout,
+            sock_read=timeout,
+            total=None,
         )
         self._retry_interval = retry_interval
 
     def push(self, field: str, values: Mapping[str, Any]) -> None:
-        """
-        Enqueues a new data point to be pushed to InfluxDB.
+        """Enqueues a new data point to be pushed to InfluxDB.
 
         :param field: The field name to use. This is the
         :param values: A dictionary of value names/contents for the data point
@@ -114,12 +120,10 @@ class InfluxDBPusher:
                 self.write_endpoint,
             )
 
-    async def run(self):
-        """
-        Runs the loop that drains the measurement queue and pushes the values
+    async def run(self) -> None:
+        """Runs the loop that drains the measurement queue and pushes the values
         to InfluxDB. Meant to be run as a background coroutine.
         """
-
         while True:
             try:
                 async with aiohttp.ClientSession(timeout=self._timeout) as client:
@@ -127,11 +131,9 @@ class InfluxDBPusher:
                         field, stats, timestamp = await self._queue.get()
 
                         values = ",".join(
-                            ["{}={}".format(k, v) for k, v in stats.items()]
+                            [f"{k}={v}" for k, v in stats.items()],
                         )
-                        body = "{},{} {} {}".format(
-                            field, self.tags, values, round(timestamp * 1e9)
-                        )
+                        body = f"{field},{self.tags} {values} {round(timestamp * 1e9)}"
 
                         async with client.post(self.write_endpoint, data=body) as resp:
                             if resp.status != 204:
@@ -146,6 +148,7 @@ class InfluxDBPusher:
                                 break
             except asyncio.TimeoutError:
                 logger.warning(
-                    f"Connection timed out. Trying again in {self._retry_interval} seconds..."
+                    "Connection timed out. Trying again in %s seconds…",
+                    self._retry_interval,
                 )
                 await asyncio.sleep(self._retry_interval)

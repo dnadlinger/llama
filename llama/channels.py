@@ -1,6 +1,11 @@
+from __future__ import annotations
+
 import logging
 from asyncio import AbstractEventLoop, Future, get_event_loop
-from typing import Callable, Generic, Iterable, TypeVar
+from typing import TYPE_CHECKING, Callable, Generic, TypeVar
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 logger = logging.getLogger(__name__)
 
@@ -8,8 +13,7 @@ T = TypeVar("T")
 
 
 class ChunkedChannel(Generic[T]):
-    """
-    Divides up a stream of measurements into chunks of a certain length or
+    """Divides up a stream of measurements into chunks of a certain length or
     spanning a certain wall clock duration, whichever limit is hit first.
     Clients can also query the most recent value as well as await the next one.
 
@@ -24,10 +28,9 @@ class ChunkedChannel(Generic[T]):
         bin_finished: Callable[[Iterable[T]], None],
         target_bin_size: int,
         max_bin_duration_secs: float,
-        loop: AbstractEventLoop = None,
-    ):
-        """
-        Initialise a new statistics accumulation channel.
+        loop: AbstractEventLoop | None = None,
+    ) -> None:
+        """Initialise a new statistics accumulation channel.
 
         :param name: A human-readable name for the channel.
         :param bin_finished: A callback to invoke
@@ -55,8 +58,7 @@ class ChunkedChannel(Generic[T]):
 
     # FIXME: No type hints due to issues when exported via ARTIQ's pc_rpc.
     async def get_latest(self):
-        """
-        Get the latest available measurement value.
+        """Get the latest available measurement value.
 
         Yields if no point has been pushed yet.
         """
@@ -66,16 +68,13 @@ class ChunkedChannel(Generic[T]):
 
     # FIXME: No type hints due to issues when exported via ARTIQ's pc_rpc.
     async def get_new(self):
-        """
-        Await the next measurement value to be pushed and return it.
-        """
+        """Await the next measurement value to be pushed and return it."""
         f = Future()
         self._waiting_for_values.append(f)
         return await f
 
     def push(self, value: T) -> None:
-        """
-        Push a new measurement value, appending it to the current bin and
+        """Push a new measurement value, appending it to the current bin and
         notifying any :meth:`get_new` calls waiting on it.
         """
         self._points.append(value)
@@ -100,7 +99,8 @@ class ChunkedChannel(Generic[T]):
 
     def _schedule_timeout(self) -> None:
         self._timeout = self._loop.call_later(
-            self.max_bin_duration_secs, self._timeout_elapsed
+            self.max_bin_duration_secs,
+            self._timeout_elapsed,
         )
 
     def _timeout_elapsed(self) -> None:
