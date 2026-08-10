@@ -1,16 +1,11 @@
-from __future__ import annotations
-
 import asyncio
 import logging
 import time
-from typing import TYPE_CHECKING, Any
+from typing import Any, Iterable, Mapping
 
+import argparse
 import aiohttp
 import numpy as np
-
-if TYPE_CHECKING:
-    import argparse
-    from collections.abc import Iterable, Mapping
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +35,7 @@ def influxdb_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--influxdb-tags", default=None)
 
 
-def influxdb_pusher_from_args(args: argparse.Namespace) -> InfluxDBPusher:
+def influxdb_pusher_from_args(args: argparse.Namespace) -> "InfluxDBPusher":
     """Construct an :class:`InfluxDBPusher` from the standard arguments (see
     :func:`influxdb_args`), or `None` if not enabled.
     """
@@ -63,7 +58,7 @@ def influxdb_pusher_from_args(args: argparse.Namespace) -> InfluxDBPusher:
     )
 
 
-def aggregate_stats_default(values: Iterable[float]) -> dict[str, float]:
+def aggregate_stats_default(values: Iterable[float]):
     data = np.array(values)
     return {
         "min": np.min(data),
@@ -137,8 +132,8 @@ class InfluxDBPusher:
                     while True:
                         field, stats, timestamp = await self._queue.get()
 
-                        values = ",".join(f"{k}={v}" for k, v in stats.items())
-                        body = f"{field},{self.tags} {values} {round(timestamp * 1e9)}"
+                        values = ",".join("{}={}".format(k, v) for k, v in stats.items())
+                        body = "{},{} {} {}".format(field, self.tags, values, round(timestamp * 1e9))
 
                         async with client.post(self.write_endpoint, data=body) as resp:
                             if resp.status != 204:

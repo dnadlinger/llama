@@ -1,8 +1,6 @@
-from __future__ import annotations
-
 import logging
 from asyncio import AbstractEventLoop, Future, get_event_loop
-from typing import Callable, Generic, TypeVar
+from typing import Callable, Generic, TypeVar, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +21,10 @@ class ChunkedChannel(Generic[T]):
     def __init__(
         self,
         name: str,
-        bin_finished: Callable[[list[T]], None],
+        bin_finished: Callable[[List[T]], None],
         target_bin_size: int,
         max_bin_duration_secs: float,
-        loop: AbstractEventLoop | None = None,
+        loop: Optional[AbstractEventLoop] = None,
     ) -> None:
         """Initialise a new statistics accumulation channel.
 

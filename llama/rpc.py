@@ -1,10 +1,8 @@
-from __future__ import annotations
-
 import argparse
 import asyncio
 import atexit
 import contextlib
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Optional
 
 from sipyco.asyncio_tools import atexit_register_coroutine
 from sipyco.common_args import (
@@ -17,21 +15,17 @@ from sipyco.pc_rpc import Server
 
 from .influxdb import InfluxDBPusher, influxdb_args, influxdb_pusher_from_args
 
-if TYPE_CHECKING:
-    from .channels import ChunkedChannel
-
-
-def add_chunker_methods(interface, chan: ChunkedChannel) -> None:
+def add_chunker_methods(interface, chan) -> None:
     setattr(interface, "get_latest_" + chan.name, chan.get_latest)
     setattr(interface, "get_new_" + chan.name, chan.get_new)
 
 
 def run_simple_rpc_server(
     port: int,
-    setup_args: Callable[[argparse.ArgumentParser], None] | None,
+    setup_args: Optional[Callable[[argparse.ArgumentParser], None]],
     interface_name: str,
     setup_interface: Callable[
-        [argparse.Namespace, InfluxDBPusher | None, asyncio.AbstractEventLoop],
+        [argparse.Namespace, Optional[InfluxDBPusher], asyncio.AbstractEventLoop],
         object,
     ],
 ) -> None:
